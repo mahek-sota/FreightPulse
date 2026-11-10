@@ -1,0 +1,161 @@
+name: freightpulse
+
+x-app: &app
+  build: .
+  image: freightpulse-app:latest
+  restart: unless-stopped
+  environment: &app-env
+    FREIGHTPULSE_DATABASE_URL: postgresql+psycopg://freightpulse:freightpulse@postgres:5432/freightpulse
+    FREIGHTPULSE_KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redpanda:
+      condition: service_healthy
+
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.2.7
+    restart: unless-stopped
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=1G
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:19092
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -E 'Healthy:.+true' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:v2.7.2
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+    ports:
+      - "8080:8080"
+    depends_on:
+      redpanda:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: freightpulse
+      POSTGRES_PASSWORD: freightpulse
+      POSTGRES_DB: freightpulse
+    command:
+      - postgres
+      - -c
+      - shared_buffers=512MB
+      - -c
+      - work_mem=32MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - track_io_timing=on
+    # Host port 5433 so it does not collide with a locally installed PostgreSQL on 5432.
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U freightpulse -d freightpulse"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+
+  # One-shot: create topics, run Alembic migrations, create partitions, seed reference data.
+  init:
+    <<: *app
+    restart: "no"
+    command: ["python", "-m", "freightpulse.bootstrap"]
+
+  processor:
+    <<: *app
+    command: ["python", "-m", "freightpulse.processing.processor"]
+    depends_on: &after-init
+      init:
+        condition: service_completed_successfully
+
+  alert-sink:
+    <<: *app
+    command: ["python", "-m", "freightpulse.processing.alert_sink"]
+    depends_on: *after-init
+
+  jobs:
+    <<: *app
+    command: ["python", "-m", "freightpulse.processing.jobs"]
+    environment:
+      <<: *app-env
+      # Spec: scanners every minute. At 60x one real minute is a simulated hour, so the demo
+      # stack scans every 15 s to keep detention/stale alerts close to their thresholds.
+      FREIGHTPULSE_SCANNER_INTERVAL_S: "15"
+      FREIGHTPULSE_ROLLUP_INTERVAL_S: "60"
+    depends_on: *after-init
+
+  api:
+    <<: *app
+    command: ["uvicorn", "freightpulse.api.app:app_factory", "--factory",
+              "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on: *after-init
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2d
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/freightpulse.json
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+
+  # `make demo`: simulator + live status printout (not started by `make up`).
+  demo:
+    <<: *app
+    restart: "no"
+    profiles: ["demo"]
+    command: ["python", "-m", "freightpulse.demo"]
+    environment:
+      <<: *app-env
+      API_PORT: ${API_PORT:-8000}
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  redpanda-data:
+  postgres-data:

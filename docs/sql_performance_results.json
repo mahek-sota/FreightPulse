@@ -1,0 +1,190 @@
+{
+  "generated_at": "2026-11-10T21:55:17.842667+00:00",
+  "dataset": {
+    "counts": {
+      "shipments": 200000,
+      "shipment_events": 1000000,
+      "gps_pings": 5000000,
+      "alerts": 300000
+    },
+    "sizes": "`gps_pings` 985 MB in 40 daily partitions, `shipment_events` 251 MB"
+  },
+  "machine": {
+    "host": "Apple M5 Pro, 15 cores, 24 GiB RAM",
+    "os": "Darwin 25.5.0 (arm64)",
+    "docker_vm": "4 CPUs, 4124446720 bytes"
+  },
+  "index_sizes_bytes": {
+    "ix_events_shipment_time": 41132032,
+    "ix_pings_time_btree": 113098752,
+    "ix_pings_time_brin": 983040,
+    "ix_alerts_shipment_full": 6897664,
+    "ix_alerts_active_shipment": 294912
+  },
+  "results": {
+    "timeline": [
+      {
+        "label": "before: no index (seq scan of every partition)",
+        "median_ms": 31.874,
+        "runs_ms": [
+          30.419,
+          31.309,
+          31.874,
+          33.095,
+          39.425
+        ]
+      },
+      {
+        "label": "after: composite index",
+        "median_ms": 0.201,
+        "runs_ms": [
+          0.184,
+          0.2,
+          0.201,
+          0.21,
+          0.223
+        ]
+      }
+    ],
+    "gps_range": [
+      {
+        "label": "before: pruning off, no event_time-leading index (planner full-scans the PK)",
+        "median_ms": 37.562,
+        "runs_ms": [
+          36.696,
+          37.429,
+          37.562,
+          37.72,
+          39.424
+        ]
+      },
+      {
+        "label": "pruning only (1 partition, seq scan)",
+        "median_ms": 4.603,
+        "runs_ms": [
+          4.577,
+          4.598,
+          4.603,
+          4.629,
+          4.907
+        ]
+      },
+      {
+        "label": "pruning + B-tree on event_time",
+        "median_ms": 1.637,
+        "runs_ms": [
+          1.627,
+          1.628,
+          1.637,
+          1.673,
+          1.679
+        ]
+      },
+      {
+        "label": "after: pruning + BRIN on event_time",
+        "median_ms": 1.675,
+        "runs_ms": [
+          1.662,
+          1.671,
+          1.675,
+          1.693,
+          1.716
+        ]
+      }
+    ],
+    "keyset": [
+      {
+        "label": "before: OFFSET 100000 LIMIT 50",
+        "median_ms": 48.297,
+        "runs_ms": [
+          41.96,
+          43.834,
+          48.297,
+          50.464,
+          50.966
+        ]
+      },
+      {
+        "label": "keyset, cursor on one join input only",
+        "median_ms": 9.634,
+        "runs_ms": [
+          9.435,
+          9.457,
+          9.634,
+          9.96,
+          10.011
+        ]
+      },
+      {
+        "label": "after: keyset, cursor on both join inputs (what the API runs)",
+        "median_ms": 0.098,
+        "runs_ms": [
+          0.077,
+          0.082,
+          0.098,
+          0.102,
+          0.105
+        ]
+      }
+    ],
+    "scorecard": [
+      {
+        "label": "before: aggregate shipment_events + stops on every request",
+        "median_ms": 68.417,
+        "runs_ms": [
+          67.63,
+          67.98,
+          68.417,
+          69.096,
+          75.176
+        ]
+      },
+      {
+        "label": "after: read carrier_scorecard_daily",
+        "median_ms": 0.017,
+        "runs_ms": [
+          0.012,
+          0.015,
+          0.017,
+          0.019,
+          0.021
+        ]
+      }
+    ],
+    "partial_alerts": [
+      {
+        "label": "before: no index on alerts.shipment_id",
+        "median_ms": 10.547,
+        "runs_ms": [
+          10.399,
+          10.419,
+          10.547,
+          11.535,
+          12.204
+        ]
+      },
+      {
+        "label": "full index on alerts(shipment_id), for size comparison",
+        "median_ms": 0.015,
+        "runs_ms": [
+          0.011,
+          0.013,
+          0.015,
+          0.024,
+          0.027
+        ]
+      },
+      {
+        "label": "after: partial index WHERE resolved_at IS NULL",
+        "median_ms": 0.01,
+        "runs_ms": [
+          0.008,
+          0.009,
+          0.01,
+          0.012,
+          0.015
+        ]
+      }
+    ]
+  }
+}

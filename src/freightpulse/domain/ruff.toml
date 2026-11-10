@@ -1,0 +1,13 @@
+# Keep the domain layer pure: no Kafka, database, or network imports.
+extend = "../../../pyproject.toml"
+
+[lint.flake8-tidy-imports.banned-api]
+"confluent_kafka".msg = "domain/ must stay pure (no Kafka)"
+"sqlalchemy".msg = "domain/ must stay pure (no database)"
+"psycopg".msg = "domain/ must stay pure (no database)"
+"httpx".msg = "domain/ must stay pure (no network)"
+"socket".msg = "domain/ must stay pure (no network)"
+"requests".msg = "domain/ must stay pure (no network)"
+
+[lint.per-file-ignores]
+"reference_data.py" = ["E501"]

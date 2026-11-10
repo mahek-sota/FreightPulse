@@ -1,0 +1,144 @@
+{
+  "generated_at": "2026-11-10 22:19 UTC",
+  "machine": {
+    "host": "Apple M5 Pro, 15 cores, 24 GiB RAM",
+    "os": "Darwin 25.5.0 (arm64)",
+    "docker_vm": "4 CPUs, 4124446720 bytes"
+  },
+  "capacity": {
+    "backlog_events": 500000,
+    "runs": {
+      "1": {
+        "sent": 500000,
+        "committed_rows": 487787,
+        "seconds": 49.16,
+        "events_per_sec": 9922,
+        "group_stable_after_s": 3.5,
+        "cpu_mid_drain": {
+          "postgres": "40.86%",
+          "redpanda": "1.37%",
+          "processors": "68%"
+        }
+      },
+      "3": {
+        "sent": 500000,
+        "committed_rows": 487694,
+        "seconds": 22.83,
+        "events_per_sec": 21360,
+        "group_stable_after_s": 3.6,
+        "cpu_mid_drain": {
+          "postgres": "119.90%",
+          "redpanda": "2.42%",
+          "processors": "57% + 60% + 60%"
+        }
+      }
+    },
+    "producer_rate_eps": 55639
+  },
+  "latency": {
+    "1": [
+      {
+        "target_eps": 1000,
+        "offered_eps": 997,
+        "committed_eps": 973,
+        "samples": 16835,
+        "p50_ms": 266.5,
+        "p95_ms": 419.1,
+        "p99_ms": 439.4,
+        "max_ms": 2090.6
+      },
+      {
+        "target_eps": 2000,
+        "offered_eps": 1996,
+        "committed_eps": 1949,
+        "samples": 34248,
+        "p50_ms": 446.7,
+        "p95_ms": 672.5,
+        "p99_ms": 716.6,
+        "max_ms": 1229.1
+      },
+      {
+        "target_eps": 4000,
+        "offered_eps": 3991,
+        "committed_eps": 4007,
+        "samples": 69019,
+        "p50_ms": 311.3,
+        "p95_ms": 681.1,
+        "p99_ms": 796.0,
+        "max_ms": 1154.8
+      },
+      {
+        "target_eps": 6000,
+        "offered_eps": 5983,
+        "committed_eps": 5839,
+        "samples": 100943,
+        "p50_ms": 197.8,
+        "p95_ms": 274.5,
+        "p99_ms": 287.4,
+        "max_ms": 472.8
+      },
+      {
+        "target_eps": 8000,
+        "offered_eps": 7980,
+        "committed_eps": 7844,
+        "samples": 134721,
+        "p50_ms": 182.1,
+        "p95_ms": 241.4,
+        "p99_ms": 266.4,
+        "max_ms": 321.8
+      }
+    ],
+    "3": [
+      {
+        "target_eps": 1000,
+        "offered_eps": 997,
+        "committed_eps": 972,
+        "samples": 16803,
+        "p50_ms": 185.0,
+        "p95_ms": 313.4,
+        "p99_ms": 332.6,
+        "max_ms": 1914.8
+      },
+      {
+        "target_eps": 2000,
+        "offered_eps": 1996,
+        "committed_eps": 1937,
+        "samples": 33401,
+        "p50_ms": 201.5,
+        "p95_ms": 334.7,
+        "p99_ms": 351.5,
+        "max_ms": 1204.9
+      },
+      {
+        "target_eps": 4000,
+        "offered_eps": 3994,
+        "committed_eps": 3938,
+        "samples": 67998,
+        "p50_ms": 231.7,
+        "p95_ms": 374.5,
+        "p99_ms": 394.9,
+        "max_ms": 562.8
+      },
+      {
+        "target_eps": 6000,
+        "offered_eps": 5986,
+        "committed_eps": 5873,
+        "samples": 101306,
+        "p50_ms": 247.7,
+        "p95_ms": 401.2,
+        "p99_ms": 458.9,
+        "max_ms": 526.6
+      },
+      {
+        "target_eps": 8000,
+        "offered_eps": 7962,
+        "committed_eps": 7769,
+        "samples": 134706,
+        "p50_ms": 279.2,
+        "p95_ms": 443.4,
+        "p99_ms": 477.2,
+        "max_ms": 544.1
+      }
+    ]
+  }
+}

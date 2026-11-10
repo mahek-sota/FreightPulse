@@ -1,0 +1,10 @@
+.venv
+.git
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.hypothesis
+htmlcov
+.coverage
+**/__pycache__
+bench_out
