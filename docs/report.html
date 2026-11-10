@@ -1,0 +1,930 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FreightPulse Project Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dispatch-board report. A single reading column, with wide bands for the demo, the diagrams and the charts.
+   Type borrows highway signage (condensed display), engineering body copy, and mono for event data. */
+:root {
+  --bg: #f4f6f7;
+  --surface: #ffffff;
+  --sunken: #e9edef;
+  --fg: #15212b;
+  --muted: #5a6872;
+  --line: #d3dade;
+  --accent: #0b6b4c;        /* interstate sign green */
+  --accent-soft: #dcefe7;
+  --amber: #a85d00;
+  --amber-soft: #fbeedb;
+  --red: #b42318;
+  --red-soft: #fbe4e2;
+  --blue: #1f5f9e;
+  --blue-soft: #e1ecf7;
+  --violet: #6941c6;
+  --violet-soft: #ece6fb;
+  --f-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1519; --surface: #161f25; --sunken: #1d282f; --fg: #e4eaee; --muted: #93a2ad; --line: #2a3740;
+    --accent: #3fbf8c; --accent-soft: #143428; --amber: #f2a541; --amber-soft: #3a2a12;
+    --red: #f47b70; --red-soft: #3d1a17; --blue: #6fa8e6; --blue-soft: #15283b; --violet: #a98cf2; --violet-soft: #251c3d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1519; --surface: #161f25; --sunken: #1d282f; --fg: #e4eaee; --muted: #93a2ad; --line: #2a3740;
+  --accent: #3fbf8c; --accent-soft: #143428; --amber: #f2a541; --amber-soft: #3a2a12;
+  --red: #f47b70; --red-soft: #3d1a17; --blue: #6fa8e6; --blue-soft: #15283b; --violet: #a98cf2; --violet-soft: #251c3d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { font-size: 14px; }
+body { margin: 0; }
+body {
+  background: var(--bg); color: var(--fg); font: 12px/1.55 var(--f-body);
+  padding-left: max(clamp(20px, 6vw, 96px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(20px, 6vw, 96px), env(safe-area-inset-right, 0px));
+  padding-block: 12px 64px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+.prose { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; line-height: 1.1; margin: 0; }
+h2 { font-size: 1.45rem; font-weight: 700; letter-spacing: .01em; }
+h3 { font-size: 1.02rem; font-weight: 600; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: .86em; }
+code { background: var(--sunken); padding: .1em .35em; border-radius: 4px; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* sign-style header */
+header.top { padding-block: 28px 20px; border-bottom: 1px solid var(--line); }
+.sign { display: inline-flex; align-items: center; gap: 10px; background: var(--accent); color: #fff;
+  font-family: var(--f-display); font-weight: 600; letter-spacing: .08em; text-transform: uppercase;
+  font-size: .9rem; padding: 4px 12px; border-radius: 6px; border: 2px solid var(--accent); box-shadow: inset 0 0 0 2px rgba(255,255,255,.75); }
+header.top h1 { font-size: clamp(2rem, 4.2vw, 2.9rem); font-weight: 700; margin-top: 8px; letter-spacing: -.005em; }
+header.top .lede { font-size: 1.02rem; color: var(--muted); margin-top: 8px; max-width: 70ch; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-top: 20px;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; }
+.kpi { padding: 10px 14px; border-right: 1px solid var(--line); }
+.kpi:last-child { border-right: 0; }
+.kpi b { display: block; font-family: var(--f-display); font-size: 1.3rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.kpi span { color: var(--muted); font-size: .8rem; }
+@media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); } .kpi:nth-child(2) { border-right: 0; } .kpi:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+
+.credit { margin-top: 12px; font-size: .95rem; color: var(--muted); }
+.credit strong { color: var(--fg); }
+.byline { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 14px; }
+.byline .who { font-family: var(--f-display); font-weight: 600; font-size: 1.15rem; margin-right: 6px; }
+.byline a { font: 500 .8rem var(--f-mono); text-decoration: none; color: var(--fg); border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; }
+.byline a:hover { border-color: var(--accent); color: var(--accent); }
+nav.toc { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-block: 16px; font-size: .9rem; border-bottom: 1px solid var(--line); }
+nav.toc a { color: var(--muted); text-decoration: none; }
+nav.toc a:hover { color: var(--accent); }
+
+section { padding-block: 30px 4px; display: grid; gap: 12px; }
+.eyebrow { font-family: var(--f-mono); font-size: .78rem; color: var(--accent); letter-spacing: .06em; text-transform: uppercase; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; min-width: 0; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 860px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+.note { color: var(--muted); font-size: .85rem; }
+ul.clean { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; }
+
+/* ---------- demo ---------- */
+.demo { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 980px) { .demo { grid-template-columns: 1fr; } }
+.demo h3 { font-size: .92rem; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+button { font: 600 .84rem var(--f-body); border: 1px solid var(--line); background: var(--surface); color: var(--fg);
+  padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+.clock { font-family: var(--f-mono); font-size: .9rem; color: var(--muted); margin-left: auto; }
+.progress { height: 4px; background: var(--sunken); border-radius: 2px; overflow: hidden; }
+.progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+
+.feed { display: grid; gap: 8px; max-height: 420px; overflow-y: auto; padding-right: 4px; }
+.ev { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 7px 9px; background: var(--surface);
+  font-size: .8rem; animation: drop .35s ease-out; }
+.ev.current { box-shadow: 0 0 0 2px var(--accent-soft); }
+.ev .row { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.ev .t { font-family: var(--f-mono); color: var(--muted); font-size: .78rem; }
+.ev .type { font-family: var(--f-mono); font-weight: 500; }
+.ev .verdict { margin-top: 4px; color: var(--muted); }
+.ev.ok { border-left-color: var(--accent); }
+.ev.skip { border-left-color: var(--muted); opacity: .8; }
+.ev.ooo { border-left-color: var(--blue); }
+.ev.dlq { border-left-color: var(--red); }
+.ev.scan { border-left-color: var(--violet); }
+.tag { display: inline-block; font: 600 .68rem var(--f-mono); letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; }
+.tag.topic { background: var(--sunken); color: var(--muted); }
+.tag.dup { background: var(--sunken); color: var(--fg); }
+.tag.ooo { background: var(--blue-soft); color: var(--blue); }
+.tag.bad { background: var(--red-soft); color: var(--red); }
+.tag.job { background: var(--violet-soft); color: var(--violet); }
+@keyframes drop { from { transform: translateY(-6px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ev, .alert { animation: none; } .progress i { transition: none; } }
+
+.state dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: .84rem; }
+.state dt { color: var(--muted); }
+.state dd { margin: 0; font-family: var(--f-mono); font-size: .8rem; font-variant-numeric: tabular-nums; text-align: right; }
+.status-track { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 12px; }
+.st { font: 600 .66rem var(--f-mono); padding: 3px 6px; border-radius: 4px; background: var(--sunken); color: var(--muted); }
+.st.done { background: var(--accent-soft); color: var(--accent); }
+.st.now { background: var(--accent); color: #fff; }
+.pill { font: 600 .75rem var(--f-mono); padding: 2px 8px; border-radius: 999px; }
+.risk-LOW { background: var(--accent-soft); color: var(--accent); }
+.risk-MEDIUM { background: var(--amber-soft); color: var(--amber); }
+.risk-HIGH { background: var(--red-soft); color: var(--red); }
+.flash { animation: flash .8s ease-out; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+
+.mapbox { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; background: var(--sunken); overflow: hidden; }
+.mapbox svg { display: block; width: 100%; height: auto; }
+
+.alerts { display: grid; gap: 8px; max-height: 300px; overflow-y: auto; }
+.alert { border-radius: 8px; padding: 8px 10px; font-size: .84rem; animation: drop .35s ease-out; border: 1px solid var(--line); }
+.alert .h { display: flex; justify-content: space-between; gap: 6px; font: 600 .72rem var(--f-mono); text-transform: uppercase; letter-spacing: .04em; }
+.alert.MEDIUM { background: var(--amber-soft); } .alert.MEDIUM .h { color: var(--amber); }
+.alert.HIGH, .alert.CRITICAL { background: var(--red-soft); } .alert.HIGH .h, .alert.CRITICAL .h { color: var(--red); }
+.alert.RESOLVE { background: var(--accent-soft); } .alert.RESOLVE .h { color: var(--accent); }
+.dlqbox { margin-top: 12px; display: grid; gap: 6px; }
+.dlqitem { font-size: .8rem; font-family: var(--f-mono); background: var(--red-soft); color: var(--red); padding: 6px 8px; border-radius: 6px; overflow-wrap: anywhere; }
+.empty { color: var(--muted); font-size: .85rem; font-style: italic; }
+.explain { padding: 10px 12px; border-radius: 8px; background: var(--sunken); font-size: .86rem; min-height: 4.2em; }
+.explain b { font-family: var(--f-display); font-size: .98rem; letter-spacing: .02em; }
+
+/* ---------- diagrams ---------- */
+.diagram { overflow-x: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.diagram svg { display: block; width: 100%; max-width: 920px; height: auto; margin: 0 auto; }
+.diagram.wide svg { min-width: 700px; }
+.dg-box { fill: var(--surface); stroke: var(--line); stroke-width: 1.5; }
+.dg-topic { fill: var(--blue-soft); stroke: var(--blue); stroke-width: 1.2; }
+.dg-core { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.dg-bad { fill: var(--red-soft); stroke: var(--red); stroke-width: 1.2; }
+.dg-job { fill: var(--violet-soft); stroke: var(--violet); stroke-width: 1.2; }
+.dg-t { fill: var(--fg); font: 600 13px var(--f-body); }
+.dg-s { fill: var(--muted); font: 11px var(--f-body); }
+.dg-m { fill: var(--fg); font: 500 11.5px var(--f-mono); }
+.dg-e { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+.dg-e.dash { stroke-dasharray: 4 4; }
+.dg-lbl { fill: var(--muted); font: italic 11px var(--f-body); }
+.dg-arrow { fill: var(--muted); }
+.dg-col { fill: var(--muted); font: 600 10px var(--f-mono); letter-spacing: .08em; text-transform: uppercase; }
+.txn { border: 1.5px dashed var(--accent); border-radius: 10px; padding: 12px 14px; display: grid; gap: 10px; background: var(--accent-soft); }
+.txn-h { font: 600 .72rem var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--accent); }
+.steps li p { font-size: .9rem; }
+.er { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .er { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .er { grid-template-columns: 1fr; } }
+.er-group { display: grid; gap: 8px; align-content: start; }
+.er-group > .g { font: 600 .7rem var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.er-t { border: 1px solid var(--line); border-radius: 8px; background: var(--surface); overflow: hidden; }
+.er-t b { display: block; font: 600 .82rem var(--f-mono); padding: 5px 9px; background: var(--sunken); border-bottom: 1px solid var(--line); }
+.er-t ul { list-style: none; margin: 0; padding: 6px 9px; display: grid; gap: 2px; font: .74rem var(--f-mono); color: var(--muted); }
+.er-t .k { color: var(--accent); }
+.steps { counter-reset: s; display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 2.2em minmax(0,1fr); gap: 10px; align-items: start; }
+.steps li::before { content: counter(s); font-family: var(--f-display); font-weight: 700; font-size: 1.05rem; color: var(--accent);
+  border: 2px solid var(--accent); border-radius: 6px; text-align: center; line-height: 1.5; }
+
+/* ---------- tables ---------- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; font-size: .84rem; }
+th, td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: .7rem; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; background: var(--sunken); }
+tr:last-child td { border-bottom: 0; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+td .mono { white-space: nowrap; }
+
+/* ---------- charts ---------- */
+.chart svg { width: 100%; height: auto; display: block; }
+.chart text { fill: var(--muted); font: 12px var(--f-body); }
+.chart .lbl { fill: var(--fg); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: .82rem; color: var(--muted); margin-top: 8px; }
+.legend i { display: inline-block; width: 12px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 6px 12px; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.bug { border-left: 4px solid var(--red); }
+.bug h3 { font-size: 1.02rem; }
+.cmd { font-family: var(--f-mono); font-size: .8rem; background: var(--fg); color: var(--bg); border-radius: 10px; padding: 16px 18px; overflow-x: auto; white-space: pre; line-height: 1.7; }
+.cmd .c { opacity: .6; }
+footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+<header class="top">
+  <span class="sign">I-40 · Project report</span>
+  <h1>FreightPulse</h1>
+  <p class="lede">A near real-time freight visibility platform. It takes messy truck and shipment event feeds, turns them into live shipment state, ETAs and alerts within a few hundred milliseconds, stores everything in a well-modelled PostgreSQL schema, and serves it through a typed API and a live alert stream.</p>
+  <p class="credit">Built by <strong>Mahek Sota</strong> · <a href="https://www.linkedin.com/in/mahek-sota/" target="_blank" rel="noopener">LinkedIn</a> · <a href="https://github.com/mahek-sota" target="_blank" rel="noopener">GitHub</a> · <a href="https://impact-doc.vercel.app/" target="_blank" rel="noopener">Impact doc</a></p>
+  <div class="kpis" aria-label="Headline results">
+    <div class="kpi"><b>21,360</b><span>events/s sustained, 3 processors</span></div>
+    <div class="kpi"><b>241 ms</b><span>p95 end-to-end at ~8k events/s, 1 processor</span></div>
+    <div class="kpi"><b>139</b><span>tests passing, incl. real crash tests</span></div>
+    <div class="kpi"><b>90%</b><span>coverage on domain + processing</span></div>
+  </div>
+</header>
+<nav class="toc" aria-label="Sections">
+  <a href="#problem">Problem</a><a href="#demo">Demo</a><a href="#design">System design</a><a href="#stack">Tech stack</a>
+  <a href="#how">How it works</a><a href="#data">Data model</a><a href="#results">Results</a><a href="#bugs">Bugs found</a>
+  <a href="#testing">Testing</a><a href="#run">Run it</a><a href="#next">Next steps</a>
+</nav>
+
+<!-- ======================= PROBLEM ======================= -->
+<section id="problem">
+  <span class="eyebrow">The problem</span>
+  <h2>Thousands of trucks, one messy stream</h2>
+  <div class="grid2">
+    <div class="prose" style="display:grid;gap:12px">
+      <p>A freight broker tracks thousands of loads at once. Each load sends a stream of events: tendered to a carrier, accepted, arrived at the pickup dock, departed, a GPS ping every minute or two from the truck's electronic logging device (ELD), arrived at delivery, delivered.</p>
+      <p>Those feeds are unreliable. Events arrive late, twice, out of order, or corrupted. Yet operations needs answers in seconds: <em>Where is the truck? Will it make its delivery appointment? Is the driver stuck at a dock, running up detention charges at $75 an hour?</em> Analytics needs the same data modelled properly to score lanes and carriers.</p>
+      <p>FreightPulse covers the whole path: <strong>ingestion, stream processing, relational storage, and an API</strong>.</p>
+    </div>
+    <div class="panel">
+      <h3 style="margin-bottom:10px">What it answers</h3>
+      <ul class="clean">
+        <li><strong>Shipment state</strong>: CREATED through DELIVERED, never moving backwards even when events arrive out of order.</li>
+        <li><strong>ETA</strong>: distance by road to the next stop, a smoothed truck speed, plus the 10-hour rest a driver must take after 11 hours of driving.</li>
+        <li><strong>Late-risk alerts</strong>: MEDIUM within 30 minutes of the appointment window closing, HIGH once past it. Raised only when the level changes.</li>
+        <li><strong>Detention alerts</strong>: a truck at a dock for more than 2 hours, escalating at 3 and 4 hours, with the cost estimated.</li>
+        <li><strong>Stale-tracking alerts</strong>: a truck in transit with no GPS for more than an hour.</li>
+        <li><strong>Lane and carrier analytics</strong>: on-time %, transit time, acceptance rate, tracking compliance.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= DEMO ======================= -->
+<section id="demo">
+  <span class="eyebrow">Demo · scripted replay</span>
+  <h2>One load, Dallas to Memphis</h2>
+  <p class="prose note">This replays one shipment's events through the same rules the processor applies, including the chaos the simulator injects: a duplicate, an out-of-order ping, a corrupt ping, a GPS "teleport", and a GPS dropout. Times are simulated (the real simulator runs 60× faster than real time). Values are illustrative but follow the real formulas. Step through it or press Play.</p>
+  <div class="panel" style="display:grid;gap:12px">
+    <div class="controls">
+      <button class="primary" id="play" type="button">Play</button>
+      <button id="step" type="button">Next event</button>
+      <button id="reset" type="button">Restart</button>
+      <span class="clock" id="clock">fleet clock 08:00</span>
+    </div>
+    <div class="progress" aria-hidden="true"><i id="bar"></i></div>
+    <div class="explain" id="explain" aria-live="polite"><b>Ready.</b> The first event is <code>shipment.created</code> from the TMS.</div>
+  </div>
+  <div class="demo">
+    <div class="panel">
+      <h3>1 · Kafka topics → processor</h3>
+      <div class="feed" id="feed"><p class="empty">Events will appear here as they are consumed.</p></div>
+    </div>
+    <div class="panel state">
+      <h3>2 · Shipment state (Postgres)</h3>
+      <div class="status-track" id="track"></div>
+      <dl id="statelist"></dl>
+      <div class="mapbox"><svg id="map" viewBox="0 0 520 300" role="img" aria-label="Facility network with the truck's position between Dallas and Memphis"></svg></div>
+    </div>
+    <div class="panel">
+      <h3>3 · Alerts & dead-letter queue</h3>
+      <div class="alerts" id="alerts"><p class="empty">No alerts yet.</p></div>
+      <div class="dlqbox" id="dlq"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= DESIGN ======================= -->
+<section id="design">
+  <span class="eyebrow">System design</span>
+  <h2>Architecture</h2>
+  <p class="prose">Every event is keyed by <code>shipment_id</code>, so all of a shipment's events stay in order on one Kafka partition. The two input topics have the same partition count and the processor group uses the <em>range</em> assignor, so a shipment's lifecycle events and its GPS pings are handled by the same processor instance.</p>
+  <div class="diagram wide">
+<svg viewBox="0 0 1000 400" role="img" aria-label="Architecture: simulator to two Kafka topics, state processor to PostgreSQL, alerts topic and dead-letter queue, jobs service, alert sink, FastAPI to users">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="dg-arrow"/></marker></defs>
+<text x="90" y="18" text-anchor="middle" class="dg-col">Produce</text>
+<text x="285" y="18" text-anchor="middle" class="dg-col">Kafka (Redpanda)</text>
+<text x="485" y="18" text-anchor="middle" class="dg-col">Process</text>
+<text x="695" y="18" text-anchor="middle" class="dg-col">Store</text>
+<text x="905" y="18" text-anchor="middle" class="dg-col">Serve</text>
+<rect x="20" y="165" width="140" height="70" rx="8" class="dg-box"/>
+<text x="90.0" y="196.5" text-anchor="middle" class="dg-t">Fleet simulator</text>
+<text x="90.0" y="211.5" text-anchor="middle" class="dg-s">chaos knobs</text>
+<rect x="200" y="105" width="170" height="56" rx="8" class="dg-topic"/>
+<text x="285.0" y="129.5" text-anchor="middle" class="dg-m">freight.shipment.events</text>
+<text x="285.0" y="144.5" text-anchor="middle" class="dg-s">6 partitions</text>
+<rect x="200" y="239" width="170" height="56" rx="8" class="dg-topic"/>
+<text x="285.0" y="263.5" text-anchor="middle" class="dg-m">freight.telemetry.gps</text>
+<text x="285.0" y="278.5" text-anchor="middle" class="dg-s">6 partitions</text>
+<rect x="410" y="150" width="150" height="100" rx="8" class="dg-core"/>
+<text x="485.0" y="189.0" text-anchor="middle" class="dg-t">State processor</text>
+<text x="485.0" y="204.0" text-anchor="middle" class="dg-s">1–N instances</text>
+<text x="485.0" y="219.0" text-anchor="middle" class="dg-s">1 DB txn per batch</text>
+<rect x="410" y="30" width="150" height="50" rx="8" class="dg-box"/>
+<text x="485.0" y="51.5" text-anchor="middle" class="dg-t">Prometheus → Grafana</text>
+<text x="485.0" y="66.5" text-anchor="middle" class="dg-s">metrics</text>
+<rect x="410" y="320" width="150" height="50" rx="8" class="dg-bad"/>
+<text x="485.0" y="341.5" text-anchor="middle" class="dg-m">freight.dlq</text>
+<text x="485.0" y="356.5" text-anchor="middle" class="dg-s">rejected events</text>
+<rect x="620" y="30" width="150" height="60" rx="8" class="dg-job"/>
+<text x="695.0" y="56.5" text-anchor="middle" class="dg-t">Jobs service</text>
+<text x="695.0" y="71.5" text-anchor="middle" class="dg-s">scanners · rollups</text>
+<rect x="620" y="150" width="150" height="100" rx="8" class="dg-core"/>
+<text x="695.0" y="189.0" text-anchor="middle" class="dg-t">PostgreSQL 16</text>
+<text x="695.0" y="204.0" text-anchor="middle" class="dg-s">daily partitions</text>
+<text x="695.0" y="219.0" text-anchor="middle" class="dg-s">versioned state</text>
+<rect x="620" y="310" width="150" height="60" rx="8" class="dg-topic"/>
+<text x="695.0" y="336.5" text-anchor="middle" class="dg-m">freight.alerts</text>
+<text x="695.0" y="351.5" text-anchor="middle" class="dg-s">from processor + jobs</text>
+<rect x="830" y="30" width="150" height="60" rx="8" class="dg-box"/>
+<text x="905.0" y="56.5" text-anchor="middle" class="dg-t">Ops users & apps</text>
+<text x="905.0" y="71.5" text-anchor="middle" class="dg-s">browser · services</text>
+<rect x="830" y="150" width="150" height="100" rx="8" class="dg-core"/>
+<text x="905.0" y="189.0" text-anchor="middle" class="dg-t">FastAPI</text>
+<text x="905.0" y="204.0" text-anchor="middle" class="dg-s">REST + OpenAPI</text>
+<text x="905.0" y="219.0" text-anchor="middle" class="dg-s">WebSocket /ws/alerts</text>
+<rect x="830" y="310" width="150" height="60" rx="8" class="dg-box"/>
+<text x="905.0" y="336.5" text-anchor="middle" class="dg-t">Alert sink</text>
+<text x="905.0" y="351.5" text-anchor="middle" class="dg-s">dedupe by key</text>
+<path d="M160 190 H180 V133 H197" class="dg-e" marker-end="url(#ah)"/>
+<path d="M160 210 H180 V267 H197" class="dg-e" marker-end="url(#ah)"/>
+<path d="M370 133 H390 V185 H407" class="dg-e" marker-end="url(#ah)"/>
+<path d="M370 267 H390 V215 H407" class="dg-e" marker-end="url(#ah)"/>
+<path d="M560 200 H617" class="dg-e" marker-end="url(#ah)"/>
+<path d="M560 235 H590 V340 H617" class="dg-e" marker-end="url(#ah)"/>
+<path d="M485 250 V317" class="dg-e" marker-end="url(#ah)"/>
+<path d="M485 150 V83" class="dg-e dash" marker-end="url(#ah)"/>
+<path d="M695 90 V147" class="dg-e" marker-end="url(#ah)"/>
+<path d="M770 340 H827" class="dg-e" marker-end="url(#ah)"/>
+<path d="M905 310 V285 H695 V253" class="dg-e" marker-end="url(#ah)"/>
+<path d="M770 200 H827" class="dg-e" marker-end="url(#ah)"/>
+<path d="M905 150 V93" class="dg-e" marker-end="url(#ah)"/>
+<text x="495" y="292" class="dg-lbl">invalid</text>
+<text x="705" y="126" class="dg-lbl">scan fleet clock</text>
+<text x="800" y="279" text-anchor="middle" class="dg-lbl">upsert alerts</text>
+<text x="596" y="300" class="dg-lbl" text-anchor="start">late risk</text>
+</svg>
+  </div>
+
+  <h3 style="margin-top:16px">What happens to one batch</h3>
+  <p class="prose">The core guarantee is <strong>at-least-once delivery plus idempotent writes, which together give effectively-once results</strong>. Kafka offsets are committed only after the database transaction commits. A crash at any point either replays the batch (and duplicates are skipped by <code>event_id</code>) or loses nothing.</p>
+  <div class="panel" style="display:grid;gap:12px">
+    <ol class="steps">
+      <li><p><strong>Consume</strong> up to 1,000 messages from both topics. Auto-commit is off, so nothing is acknowledged yet.</p></li>
+      <li><p><strong>Validate</strong> every message against its schema. Bad ones are set aside for the DLQ.</p></li>
+      <li><p><strong>Prepare</strong>: make sure the day's partitions exist and upsert any new lanes, each in its own short transaction.</p></li>
+    </ol>
+    <div class="txn">
+      <span class="txn-h">One database transaction</span>
+      <ol class="steps" style="counter-reset: s 3">
+        <li><p>Insert new shipments and their stops.</p></li>
+        <li><p>Skip any <code>event_id</code> already in the log (redeliveries, producer retries).</p></li>
+        <li><p>Fold each remaining event through the pure reducer: status, stops, position, ETA, late risk.</p></li>
+        <li><p>Append events with <code>ON CONFLICT DO NOTHING</code>, then <code>UPDATE … WHERE version = expected</code>.</p></li>
+        <li><p>Publish alerts and DLQ records and flush them, then <strong>COMMIT</strong>.</p></li>
+      </ol>
+    </div>
+    <ol class="steps" style="counter-reset: s 8">
+      <li><p><strong>Commit Kafka offsets</strong>, synchronously, only after the database commit.</p></li>
+    </ol>
+    <p class="note">Crash before the commit: the batch is replayed and nothing was written. Crash after it: the batch is replayed and every event is skipped as already logged.</p>
+  </div>
+</section>
+
+<!-- ======================= STACK ======================= -->
+<section id="stack">
+  <span class="eyebrow">Tech stack</span>
+  <h2>What it's built with</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Layer</th><th>Choice</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>Language</td><td>Python 3.12, <code>mypy --strict</code></td><td>Typed end to end; the domain layer is pure and has no I/O imports (enforced by a lint rule and a test).</td></tr>
+        <tr><td>Message broker</td><td>Redpanda (Kafka API) in Docker</td><td>Kafka semantics in a single binary that fits on a laptop.</td></tr>
+        <tr><td>Kafka client</td><td><code>confluent-kafka</code></td><td>Plain consumers with manual offsets and commits, so the delivery guarantees are visible in the code, not hidden in a framework.</td></tr>
+        <tr><td>Contracts</td><td>Pydantic v2 (JSON + <code>schema_version</code>)</td><td>One envelope plus a strict, typed payload per event type.</td></tr>
+        <tr><td>Database</td><td>PostgreSQL 16, declarative partitioning</td><td>Daily partitions for the event log and GPS pings; a BRIN index for time scans.</td></tr>
+        <tr><td>DB access</td><td>SQLAlchemy 2.0 Core + psycopg 3, Alembic</td><td>Explicit SQL; bulk updates via <code>jsonb_to_recordset</code>; 4 versioned migrations.</td></tr>
+        <tr><td>API</td><td>FastAPI + Uvicorn, WebSocket</td><td>Typed responses, OpenAPI docs, a live alert push.</td></tr>
+        <tr><td>Observability</td><td><code>prometheus-client</code>, Prometheus, Grafana</td><td>Lag, throughput, latency, DLQ and alert metrics; a 14-panel dashboard provisioned automatically.</td></tr>
+        <tr><td>Testing</td><td>pytest, Hypothesis, testcontainers</td><td>Property tests on the state machine; integration tests against real Redpanda and Postgres containers.</td></tr>
+        <tr><td>Tooling</td><td>uv, ruff, pre-commit, GitHub Actions, Docker Compose, Make</td><td><code>make up &amp;&amp; make demo</code> runs the whole system.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ======================= HOW IT WORKS ======================= -->
+<section id="how">
+  <span class="eyebrow">How it works</span>
+  <h2>The rules inside the processor</h2>
+  <div style="display:grid;gap:14px">
+    <div class="panel" style="display:grid;gap:10px">
+      <h3>Shipment state machine</h3>
+      <p class="note">Statuses have a rank along the main path. A forward jump is always allowed (a truck's geofence events are sometimes missed). A move backwards with a newer timestamp is invalid and goes to the DLQ. EXCEPTION sits on top of the current status and returns to it when resolved.</p>
+      <div class="diagram" style="padding:8px;overflow-x:auto"><div style="min-width:620px;max-width:980px"><svg viewBox="0 0 1000 200" role="img" aria-label="State machine: CREATED, TENDERED, ACCEPTED, AT_PICKUP, IN_TRANSIT, AT_DELIVERY, DELIVERED; TENDERED to REJECTED and back; IN_TRANSIT to EXCEPTION and back">
+<defs><marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" class="dg-arrow"/></marker></defs>
+<rect x="10" y="30" width="110" height="38" rx="8" class="dg-core"/><text x="65" y="53" text-anchor="middle" class="dg-m">CREATED</text>
+<path d="M120 49 H149" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="152" y="30" width="110" height="38" rx="8" class="dg-box"/><text x="207" y="53" text-anchor="middle" class="dg-m">TENDERED</text>
+<path d="M262 49 H291" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="294" y="30" width="110" height="38" rx="8" class="dg-box"/><text x="349" y="53" text-anchor="middle" class="dg-m">ACCEPTED</text>
+<path d="M404 49 H433" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="436" y="30" width="110" height="38" rx="8" class="dg-box"/><text x="491" y="53" text-anchor="middle" class="dg-m">AT_PICKUP</text>
+<path d="M546 49 H575" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="578" y="30" width="110" height="38" rx="8" class="dg-box"/><text x="633" y="53" text-anchor="middle" class="dg-m">IN_TRANSIT</text>
+<path d="M688 49 H717" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="720" y="30" width="110" height="38" rx="8" class="dg-box"/><text x="775" y="53" text-anchor="middle" class="dg-m">AT_DELIVERY</text>
+<path d="M830 49 H859" class="dg-e" marker-end="url(#ah2)"/>
+<rect x="862" y="30" width="110" height="38" rx="8" class="dg-core"/><text x="917" y="53" text-anchor="middle" class="dg-m">DELIVERED</text>
+<rect x="152" y="132" width="110" height="38" rx="8" class="dg-bad"/><text x="207" y="155" text-anchor="middle" class="dg-m">REJECTED</text>
+<path d="M187 68 V129" class="dg-e" marker-end="url(#ah2)"/><path d="M227 132 V71" class="dg-e" marker-end="url(#ah2)"/>
+<text x="236" y="106" class="dg-lbl">re-tender</text>
+<rect x="578" y="132" width="110" height="38" rx="8" class="dg-job"/><text x="633" y="155" text-anchor="middle" class="dg-m">EXCEPTION</text>
+<path d="M613 68 V129" class="dg-e" marker-end="url(#ah2)"/><path d="M653 132 V71" class="dg-e" marker-end="url(#ah2)"/>
+<text x="605" y="106" text-anchor="end" class="dg-lbl">weather, breakdown</text><text x="662" y="106" class="dg-lbl">resolved</text>
+<text x="10" y="18" class="dg-col">Main path · rank increases left to right</text>
+</svg></div></div>
+    </div>
+    <div class="panel" style="display:grid;gap:12px">
+      <h3>Out-of-order events</h3>
+      <p class="note">The log always records every valid event. Only the derived state follows ordering rules, and each part of it has its own event-time check:</p>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Part of state</th><th>Changes only if</th></tr></thead>
+          <tbody>
+            <tr><td>Status</td><td>the event is newer than the event that set the current status</td></tr>
+            <tr><td>Position, speed, ETA</td><td>the ping is newer than the last ping</td></tr>
+            <tr><td>Stop arrival / departure</td><td>always: earliest arrival and latest departure win</td></tr>
+            <tr><td>Carrier, rate</td><td>the tender event is the newest of its kind</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note">Hypothesis checks two properties: any shuffle of a valid lifecycle ends in the same state as the ordered one, and no random event sequence ever moves the status backwards.</p>
+    </div>
+  </div>
+
+  <div class="grid3">
+    <div class="panel" style="display:grid;gap:8px">
+      <h3>ETA</h3>
+      <p class="mono" style="font-size:.82rem;background:var(--sunken);padding:8px;border-radius:6px">miles = haversine × 1.18<br>speed = EWMA of pings ≥ 5 mph<br>drive_h = miles / speed<br>breaks = ⌈(drive_h − hos_left) / 11⌉<br>eta = now + drive_h + 10 h × breaks</p>
+      <p class="note">1.18 is the road circuity factor. Confidence falls when pings are stale or speed varies a lot.</p>
+    </div>
+    <div class="panel" style="display:grid;gap:8px">
+      <h3>Detention</h3>
+      <div class="tablewrap"><table>
+        <thead><tr><th>At dock</th><th>Severity</th></tr></thead>
+        <tbody><tr><td>&lt; 2 h</td><td>free time</td></tr><tr><td>2–3 h</td><td><span class="pill risk-MEDIUM">MEDIUM</span></td></tr><tr><td>3–4 h</td><td><span class="pill risk-HIGH">HIGH</span></td></tr><tr><td>≥ 4 h</td><td><span class="pill risk-HIGH">CRITICAL</span></td></tr></tbody>
+      </table></div>
+      <p class="note">Cost is $75/h after the 2 free hours. A scanner checks open dock stops against the fleet clock.</p>
+    </div>
+    <div class="panel" style="display:grid;gap:8px">
+      <h3>Bad data → DLQ</h3>
+      <ul class="clean" style="font-size:.9rem">
+        <li><code>SCHEMA_VALIDATION</code>: corrupt JSON or fields</li>
+        <li><code>UNKNOWN_SHIPMENT</code>: still no <code>shipment.created</code> after 30 s parked</li>
+        <li><code>INVALID_TRANSITION</code>: e.g. departed after delivered</li>
+        <li><code>IMPOSSIBLE_GPS_JUMP</code>: implied speed over 100 mph</li>
+        <li><code>UNKNOWN_REFERENCE</code>: unknown carrier or facility</li>
+      </ul>
+      <p class="note"><code>make dlq-replay</code> re-sends them after a fix.</p>
+    </div>
+  </div>
+  <div class="panel prose" style="max-width:none;display:grid;gap:8px">
+    <h3>Why the scanners use event time, not the wall clock</h3>
+    <p>The simulator runs 60× faster than real time, and replayed history must raise alerts on the history's own timeline. So the detention and stale-tracking scanners use a <strong>fleet clock</strong>: the newest event time any processor has committed, stored per partition in <code>stream_watermarks</code>.</p>
+  </div>
+</section>
+
+<!-- ======================= DATA MODEL ======================= -->
+<section id="data">
+  <span class="eyebrow">Data model</span>
+  <h2>Relational schema</h2>
+  <p class="prose">Reference data is normalized; the event log is append-only and partitioned by day. <code>shipment_current_state</code> is the one-row-per-shipment snapshot the API reads, with a <code>version</code> column for optimistic concurrency.</p>
+  <div class="er">
+    <div class="er-group"><span class="g">Reference</span>
+      <div class="er-t"><b>customers</b><ul><li><span class="k">customer_id</span></li><li>name</li></ul></div>
+      <div class="er-t"><b>carriers</b><ul><li><span class="k">carrier_id</span></li><li>name · scac · mc_number</li></ul></div>
+      <div class="er-t"><b>facilities</b><ul><li><span class="k">facility_id</span></li><li>lat · lon · timezone</li><li>avg_dwell_min</li></ul></div>
+      <div class="er-t"><b>lanes</b><ul><li><span class="k">lane_id</span></li><li>origin → dest facility</li><li>distance_mi</li></ul></div>
+    </div>
+    <div class="er-group"><span class="g">Core state</span>
+      <div class="er-t"><b>shipments</b><ul><li><span class="k">shipment_id</span></li><li>customer · carrier · lane</li><li>mode · equipment · status</li></ul></div>
+      <div class="er-t"><b>shipment_stops</b><ul><li><span class="k">shipment_id, stop_sequence</span></li><li>appt_start · appt_end</li><li>arrived_at · departed_at</li></ul></div>
+      <div class="er-t"><b>shipment_current_state</b><ul><li><span class="k">shipment_id</span></li><li>status · eta · late_risk</li><li>last_lat · last_lon</li><li>version (optimistic lock)</li></ul></div>
+      <div class="er-t"><b>alerts</b><ul><li><span class="k">alert_id</span> · dedupe_key UNIQUE</li><li>type · severity</li><li>triggered_at · resolved_at</li></ul></div>
+    </div>
+    <div class="er-group"><span class="g">Append-only log · daily partitions</span>
+      <div class="er-t"><b>shipment_events</b><ul><li><span class="k">event_id, event_time</span></li><li>shipment_id · event_type</li><li>payload JSONB</li></ul></div>
+      <div class="er-t"><b>gps_pings</b><ul><li><span class="k">event_id, event_time</span></li><li>shipment_id · lat · lon</li><li>speed_mph · BRIN(event_time)</li></ul></div>
+    </div>
+    <div class="er-group"><span class="g">Rollups</span>
+      <div class="er-t"><b>lane_metrics_hourly</b><ul><li><span class="k">lane_id, hour_bucket</span></li><li>on_time_pct</li><li>avg / p90 transit hours</li></ul></div>
+      <div class="er-t"><b>carrier_scorecard_daily</b><ul><li><span class="k">carrier_id, day</span></li><li>tenders · acceptance_rate</li><li>on-time %, tracking %</li></ul></div>
+    </div>
+  </div>
+  <p class="note">Partitions are created 7 days ahead and dropped after 90 days. The two log tables have no foreign key to <code>shipments</code> because they are the busiest write paths; the processor checks the shipment exists before appending.</p>
+</section>
+
+<!-- ======================= RESULTS ======================= -->
+<section id="results">
+  <span class="eyebrow">Results · measured, not estimated</span>
+  <h2>Throughput, latency and SQL</h2>
+  <p class="prose note">Measured on an Apple M5 Pro laptop, with Redpanda and Postgres sharing a 4-CPU Docker VM and processors running on the host. The workload uses the default chaos mix (2% duplicates, 3% out of order, 0.5% malformed, 1% GPS dropout).</p>
+  <div class="grid2">
+    <div class="panel chart">
+      <h3 style="margin-bottom:4px">Sustained throughput</h3>
+      <p class="note" style="margin-bottom:10px">Draining a 500,000-event backlog, after the consumer group is stable.</p>
+      <svg id="thr" viewBox="0 0 460 190" role="img" aria-label="Throughput: 9,922 events per second with 1 processor, 21,360 with 3"></svg>
+      <p class="note" style="margin-top:6px">3 instances: <strong>2.15×</strong>. Postgres CPU rose from 0.4 to 1.2 cores; each processor sat at about 60–68% CPU, limited by its one-batch-at-a-time round trips.</p>
+    </div>
+    <div class="panel chart">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:4px">
+        <h3>End-to-end latency</h3>
+        <div class="seg" role="group" aria-label="Processor count">
+          <button type="button" id="lat1" aria-pressed="true">1 processor</button>
+          <button type="button" id="lat3" aria-pressed="false">3 processors</button>
+        </div>
+      </div>
+      <p class="note" style="margin-bottom:6px">Producer timestamp → Postgres commit, from exact per-event samples.</p>
+      <svg id="lat" viewBox="0 0 460 230" role="img" aria-label="Latency percentiles by offered load"></svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>p50</span><span><i style="background:var(--amber)"></i>p95</span><span><i style="background:var(--red)"></i>p99</span></div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:12px">SQL before and after</h3>
+  <p class="prose note">Against 5 million GPS pings, 1 million events and 200,000 shipments loaded with <code>COPY</code>. Median of 5 warm runs of <code>EXPLAIN (ANALYZE, BUFFERS)</code>.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Query</th><th>Change</th><th class="num">Before</th><th class="num">After</th><th class="num">Speedup</th></tr></thead>
+      <tbody id="sqlrows"></tbody>
+    </table>
+  </div>
+  <p class="note">The BRIN index on <code>gps_pings.event_time</code> is <strong>960 kB</strong>, against <strong>107.9 MB</strong> for an equivalent B-tree, and queries ran at nearly the same speed (1.68 ms vs 1.64 ms).</p>
+</section>
+
+<!-- ======================= BUGS ======================= -->
+<section id="bugs">
+  <span class="eyebrow">Found by measuring</span>
+  <h2>Bugs the benchmarks and demo caught</h2>
+  <div class="grid2">
+    <div class="panel bug" style="display:grid;gap:8px">
+      <h3>Processors deadlocked each other</h3>
+      <p>The first benchmark showed 3 processors no faster than 1 (1.05×). A CPU sample read <code>0% + 0% + 68%</code>: two had crashed with <code>DeadlockDetected</code>, inserting the same new lanes in opposite order. Lanes are now upserted in sorted order in a short transaction of their own, and deadlocks are retried. Result: 2.15× scaling, and a regression test with 3 live processors.</p>
+    </div>
+    <div class="panel bug" style="display:grid;gap:8px">
+      <h3>One bad first GPS fix poisoned a track</h3>
+      <p>A corrupt first ping can't be checked against anything, so it became the anchor and every good ping after it was rejected: 15 good pings dead-lettered for one truck. Now, if two rejected pings agree with each other, the anchor was the outlier and the track re-anchors.</p>
+    </div>
+    <div class="panel bug" style="display:grid;gap:8px">
+      <h3>Keyset pagination wasn't fast</h3>
+      <p>8.7 ms instead of under 1 ms. Postgres carries an equality across a join but not a range, so the cursor applied to one table only and the other was scanned from row 1. Repeating the bound on both tables: 0.098 ms.</p>
+    </div>
+    <div class="panel bug" style="display:grid;gap:8px">
+      <h3>Out-of-order lifecycle events froze the ETA</h3>
+      <p>Stop events often reach the processor after newer pings from the other topic, so they counted as "older" and never refreshed the ETA. Now a stop or status change recomputes the ETA as of the latest known position.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ======================= TESTING ======================= -->
+<section id="testing">
+  <span class="eyebrow">Testing</span>
+  <h2>139 tests, 90% coverage where it matters</h2>
+  <div class="grid3">
+    <div class="panel" style="display:grid;gap:8px"><h3>Unit & property</h3><p class="note">ETA, HOS and haversine math; the state machine under Hypothesis; simulator determinism and chaos rates; alert rules; no I/O imports in the domain layer.</p></div>
+    <div class="panel" style="display:grid;gap:8px"><h3>Integration</h3><p class="note">Real Redpanda and Postgres containers. Duplicates produce exactly one row; shuffled order gives the same state; bad events land in the DLQ; parking and expiry; DLQ replay; scanners; rollups; 3 concurrent processors.</p></div>
+    <div class="panel" style="display:grid;gap:8px"><h3>Crash tests</h3><p class="note">The processor runs as a subprocess and is killed before the DB commit, after it, and at a random moment with SIGKILL. After a restart, the row counts are exact: nothing lost, nothing duplicated.</p></div>
+  </div>
+</section>
+
+<!-- ======================= RUN ======================= -->
+<section id="run">
+  <span class="eyebrow">Run it</span>
+  <h2>From clone to live alerts</h2>
+  <p class="prose note">Needs Docker, <code>make</code> and <code>uv</code>. If port 8000 is taken, add <code>API_PORT=8001</code> to both commands.</p>
+  <div class="cmd"><span class="c"># start everything: topics, migrations, partitions and seed data are automatic</span>
+make up
+<span class="c"># 500 shipments at 60× for 4 minutes; prints fleet status and new alerts</span>
+make demo
+<span class="c"># then open  :8000/ live alerts · :8000/docs API · :3000 Grafana · :8080 Redpanda Console</span>
+
+make test                                   <span class="c"># full test suite</span>
+make seed-large &amp;&amp; make sql-perf &amp;&amp; make bench  <span class="c"># regenerate the performance reports</span>
+make down                                   <span class="c"># stop and delete all data</span></div>
+</section>
+
+<!-- ======================= NEXT ======================= -->
+<section id="next">
+  <span class="eyebrow">At scale</span>
+  <h2>What I'd do next</h2>
+  <div class="grid2">
+    <ul class="clean prose">
+      <li><strong>Avro or Protobuf with a schema registry</strong>, for compact payloads and enforced compatibility.</li>
+      <li><strong>Flink or Kafka Streams</strong> for per-shipment state, windows and watermarks, with exactly-once sinks.</li>
+      <li><strong>CDC with Debezium</strong> from the TMS database, instead of the TMS publishing events itself.</li>
+    </ul>
+    <ul class="clean prose">
+      <li><strong>An Iceberg lakehouse sink</strong> for cheap long retention and ML features for ETA models.</li>
+      <li><strong>Multi-region</strong> Kafka with replication and read replicas for the API.</li>
+      <li>Process partitions in parallel inside one instance, the main limit measured above.</li>
+    </ul>
+  </div>
+</section>
+
+<footer><p style="margin-bottom:6px;color:var(--fg)">Built by <strong>Mahek Sota</strong> · <a href="https://www.linkedin.com/in/mahek-sota/" target="_blank" rel="noopener">LinkedIn</a> · <a href="https://github.com/mahek-sota" target="_blank" rel="noopener">GitHub</a> · <a href="https://impact-doc.vercel.app/" target="_blank" rel="noopener">Impact doc</a></p>FreightPulse · Python 3.12 · Redpanda · PostgreSQL 16 · FastAPI. Benchmark and SQL figures come from <code>docs/benchmarks.md</code> and <code>docs/sql_performance.md</code>, generated by <code>make bench</code> and <code>make sql-perf</code>. The demo above is a scripted replay of the processor's rules with illustrative values.</footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  /* ---------------- facility map ---------------- */
+  const FAC = [[32.7357,-96.877],[32.9874,-97.3186],[29.6824,-95.0007],[27.5986,-99.5357],[29.383,-98.577],[31.7811,-106.3786],[33.567,-84.581],[33.4473,-84.1469],[32.1287,-81.1428],[41.4553,-88.0817],[41.7681,-87.8015],[35.0456,-89.9773],[34.9889,-90.0126],[36.2081,-86.2911],[39.8138,-82.9277],[39.9445,-83.2688],[39.7042,-86.3994],[38.0884,-85.7158],[34.0633,-117.6509],[33.9425,-117.2297],[33.7542,-118.2165],[33.7361,-118.262],[37.7954,-122.2799],[47.269,-122.4109],[33.4353,-112.3577],[39.7799,-104.786],[40.7608,-111.991],[38.7645,-94.9719],[38.8114,-89.9532],[44.798,-93.5269],[42.2223,-83.3966],[40.684,-74.1502],[40.3165,-74.5132],[40.6084,-75.4902],[40.201,-77.1889],[35.2271,-80.8431],[32.834,-79.8826],[30.406,-81.515],[28.4158,-81.2989],[29.923,-90.0617]];
+  const proj = (lat, lon) => [((lon + 125) / 59) * 500 + 10, ((50 - lat) / 26) * 270 + 15];
+  const DAL = [32.7357, -96.877], MEM = [35.0456, -89.9773];
+  const NS = "http://www.w3.org/2000/svg";
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+  let truck, truckHalo;
+  function drawMap() {
+    const svg = $("map"); svg.innerHTML = "";
+    for (let lat = 25; lat <= 50; lat += 5) { const [, y] = proj(lat, -125); el("line", { x1: 10, x2: 510, y1: y, y2: y, stroke: css("--line"), "stroke-width": 1 }, svg); }
+    for (let lon = -120; lon <= -70; lon += 10) { const [x] = proj(30, lon); el("line", { x1: x, x2: x, y1: 15, y2: 285, stroke: css("--line"), "stroke-width": 1 }, svg); }
+    FAC.forEach(([la, lo]) => { const [x, y] = proj(la, lo); el("circle", { cx: x, cy: y, r: 3, fill: css("--muted"), opacity: .55 }, svg); });
+    const [x1, y1] = proj(...DAL), [x2, y2] = proj(...MEM);
+    el("line", { x1, y1, x2, y2, stroke: css("--accent"), "stroke-width": 2.5, "stroke-dasharray": "5 4" }, svg);
+    [[x1, y1, "Dallas DC"], [x2, y2, "Memphis DC"]].forEach(([x, y, t], i) => {
+      el("circle", { cx: x, cy: y, r: 5, fill: css("--surface"), stroke: css("--accent"), "stroke-width": 2 }, svg);
+      const tx = el("text", { x: x + (i ? 8 : -8), y: y - 9, "text-anchor": i ? "start" : "end", fill: css("--fg"), "font-size": 12, "font-family": css("--f-body"), "font-weight": 600 }, svg);
+      tx.textContent = t;
+    });
+    const lab = el("text", { x: 14, y: 293, fill: css("--muted"), "font-size": 10, "font-family": css("--f-mono") }, svg);
+    lab.textContent = "40 seeded freight hubs · lat/lon grid";
+    truckHalo = el("circle", { r: 9, fill: css("--accent"), opacity: .2 }, svg);
+    truck = el("circle", { r: 5, fill: css("--accent"), stroke: css("--surface"), "stroke-width": 2 }, svg);
+    placeTruck(lastFrac);
+  }
+  let lastFrac = -1;
+  function placeTruck(f) {
+    lastFrac = f;
+    if (!truck) return;
+    const show = f >= 0;
+    truck.setAttribute("visibility", show ? "visible" : "hidden");
+    truckHalo.setAttribute("visibility", show ? "visible" : "hidden");
+    if (!show) return;
+    const [x1, y1] = proj(...DAL), [x2, y2] = proj(...MEM);
+    const x = x1 + (x2 - x1) * f, y = y1 + (y2 - y1) * f;
+    truck.setAttribute("cx", x); truck.setAttribute("cy", y);
+    truckHalo.setAttribute("cx", x); truckHalo.setAttribute("cy", y);
+  }
+
+  /* ---------------- scripted lifecycle ---------------- */
+  const STATUSES = ["CREATED", "TENDERED", "ACCEPTED", "AT_PICKUP", "IN_TRANSIT", "AT_DELIVERY", "DELIVERED"];
+  const TOTAL = 495; // road miles Dallas -> Memphis
+  const S = []; // steps
+  const add = (o) => S.push(o);
+  add({ t: "08:00", topic: "events", type: "shipment.created", kind: "ok",
+    verdict: "New shipment: insert shipment, 2 stops, lane, initial state.",
+    explain: "<b>shipment.created</b> from the TMS. Pickup at Dallas, window 09:30–11:30. Delivery at Memphis, window 18:30–20:30. The processor writes the shipment, its stops, the lane, and a state row at version 1.",
+    state: { status: "CREATED", carrier: "–", version: 1 } });
+  add({ t: "08:06", topic: "events", type: "shipment.tendered", kind: "ok", detail: "CAR-007 · $1,412.50",
+    verdict: "Applied: CREATED → TENDERED.", explain: "<b>Tendered</b> to carrier CAR-007 at $1,412.50.",
+    state: { status: "TENDERED", rate: "$1,412.50", version: 2 } });
+  add({ t: "08:19", topic: "events", type: "shipment.tender_rejected", kind: "ok", detail: "CAR-007 · no capacity",
+    verdict: "Applied: TENDERED → REJECTED.", explain: "<b>Rejected.</b> About 15% of simulated tenders are rejected, so the broker re-tenders to another carrier.",
+    state: { status: "REJECTED", version: 3 } });
+  add({ t: "08:24", topic: "events", type: "shipment.tendered", kind: "ok", detail: "CAR-012 · $1,486.00",
+    verdict: "Applied: REJECTED → TENDERED (re-tender).", explain: "<b>Re-tendered</b> to CAR-012. The newest tender's rate wins.",
+    state: { status: "TENDERED", rate: "$1,486.00", version: 4 } });
+  add({ t: "08:41", topic: "events", type: "shipment.tender_accepted", kind: "ok", detail: "CAR-012", id: "7c1e…a4",
+    verdict: "Applied: TENDERED → ACCEPTED, carrier set.", explain: "<b>Accepted</b> by CAR-012, which becomes the shipment's carrier.",
+    state: { status: "ACCEPTED", carrier: "CAR-012", version: 5 } });
+  add({ t: "08:41", topic: "events", type: "shipment.tender_accepted", kind: "skip", tag: ["dup", "duplicate"], id: "7c1e…a4",
+    verdict: "Skipped: event_id 7c1e…a4 is already in the log.", explain: "<b>Duplicate.</b> The same event (same <code>event_id</code>) arrives again, as happens when a producer retries. The processor sees it is already in the log and skips it. The state version does not change." });
+  add({ t: "09:58", topic: "events", type: "stop.arrived", kind: "ok", detail: "stop 1 · Dallas",
+    verdict: "Applied: ACCEPTED → AT_PICKUP; arrived_at stamped.", explain: "<b>Arrived at pickup</b> at 09:58, inside the 09:30–11:30 window.",
+    state: { status: "AT_PICKUP", version: 6 }, frac: 0 });
+  add({ t: "11:32", topic: "events", type: "stop.departed", kind: "ok", detail: "stop 1 · Dallas",
+    verdict: "Applied: AT_PICKUP → IN_TRANSIT. Dwell 94 min, within free time.", explain: "<b>Departed</b> after 94 minutes at the dock, inside the 2-hour free time, so no detention.",
+    state: { status: "IN_TRANSIT", version: 7 }, frac: 0 });
+  add({ t: "11:40", topic: "gps", type: "gps.ping", kind: "ok", detail: "58 mph · 486 mi left",
+    verdict: "Position updated. ETA 20:03, 27 min before window end → MEDIUM.", explain: "<b>First moving ping.</b> ETA = 486 road miles ÷ 58 mph = 8.4 h, so 20:03. That is within 30 minutes of the 20:30 window end, so late risk goes LOW → MEDIUM and one alert is raised.",
+    state: { eta: "20:03", miles: 486, risk: "MEDIUM", conf: "0.79", version: 8 }, frac: 0.018,
+    alert: { sev: "MEDIUM", type: "LATE_RISK", msg: "ETA 27 min before delivery window end" } });
+  add({ t: "12:05", topic: "gps", type: "gps.ping", kind: "ok", detail: "63 mph · 462 mi left",
+    verdict: "ETA 19:42 → late risk back to LOW; alert resolved.", explain: "<b>Speeding up.</b> The smoothed speed rises to 60 mph and the ETA moves to 19:42, more than 30 minutes before the window ends. Late risk drops back to LOW and the alert is resolved.",
+    state: { eta: "19:42", miles: 462, risk: "LOW", conf: "0.86", version: 9 }, frac: 0.067,
+    alert: { sev: "RESOLVE", type: "LATE_RISK", msg: "back on time for stop 2" } });
+  add({ t: "12:31", topic: "gps", type: "gps.ping", kind: "dlq", tag: ["bad", "malformed"], detail: "lat = 999",
+    verdict: "DLQ: SCHEMA_VALIDATION (payload.lat must be ≤ 90).", explain: "<b>Corrupt ping.</b> The latitude is 999. Validation fails, so the raw bytes go to <code>freight.dlq</code> with the reason. Nothing is written to the database.",
+    dlq: "SCHEMA_VALIDATION · payload.lat: Input should be less than or equal to 90" });
+  add({ t: "13:05", topic: "gps", type: "gps.ping", kind: "ok", detail: "41 mph · 399 mi left",
+    verdict: "Traffic slows the truck. ETA 20:46, past window end → HIGH.", explain: "<b>Traffic near Texarkana.</b> The smoothed speed falls to 52 mph and the ETA moves to 20:46, after the window closes at 20:30. Late risk goes to HIGH.",
+    state: { eta: "20:46", miles: 399, risk: "HIGH", conf: "0.71", version: 10 }, frac: 0.194,
+    alert: { sev: "HIGH", type: "LATE_RISK", msg: "ETA 16 min after delivery window end" } });
+  add({ t: "13:06", topic: "gps", type: "gps.ping", kind: "dlq", tag: ["bad", "teleport"], detail: "lat 73.4 · lon −41.2",
+    verdict: "DLQ: IMPOSSIBLE_GPS_JUMP (implied 96,000 mph).", explain: "<b>Teleport.</b> The JSON is valid, but the truck would have moved about 1,600 miles in one minute. Over 100 mph implied speed means a bad GPS fix, so it goes to the DLQ and the last good position stays.",
+    dlq: "IMPOSSIBLE_GPS_JUMP · implied speed 96,104 mph over 1,601.7 mi" });
+  add({ t: "13:09", topic: "gps", type: "gps.ping", kind: "ooo", tag: ["ooo", "late"], detail: "event_time 12:48",
+    verdict: "Older than 13:05: appended to the log; position unchanged.", explain: "<b>Out of order.</b> A ping stamped 12:48 arrives after the 13:05 one, delayed by a cellular dead zone. It is still logged, because the log keeps everything, but it cannot move the truck backwards." });
+  add({ t: "14:10", topic: "jobs", type: "stale-tracking scan", kind: "scan", tag: ["job", "scanner"], detail: "fleet clock 14:10",
+    verdict: "No ping for 65 min while IN_TRANSIT → STALE_TRACKING.", explain: "<b>GPS dropout.</b> The truck has sent nothing since 13:05. The scanner runs on the fleet clock (the newest event time processed across the fleet), sees 65 silent minutes, and raises a stale-tracking alert. ETA confidence drops.",
+    state: { conf: "0.45" },
+    alert: { sev: "MEDIUM", type: "STALE_TRACKING", msg: "no GPS for 65 min while IN_TRANSIT" } });
+  add({ t: "14:20", topic: "gps", type: "gps.ping", kind: "ok", detail: "60 mph · 330 mi left",
+    verdict: "Tracking restored; next scan resolves the stale alert.", explain: "<b>Pings resume.</b> The next scanner run sees a fresh ping and resolves the stale-tracking alert.",
+    state: { eta: "20:44", miles: 330, conf: "0.78", version: 11 }, frac: 0.333,
+    alert: { sev: "RESOLVE", type: "STALE_TRACKING", msg: "tracking restored (GPS resumed)" } });
+  add({ t: "17:45", topic: "gps", type: "gps.ping", kind: "ok", detail: "62 mph · 140 mi left",
+    verdict: "Still HIGH: ETA 20:00 doesn't change the level, so no new alert.", explain: "<b>Hours later.</b> Many pings arrive here (each one updates the position). The level stays HIGH, and alerts fire only on a level change, so ops isn't flooded.",
+    state: { eta: "20:00", miles: 140, risk: "HIGH", conf: "0.92", version: 58 }, frac: 0.717 });
+  add({ t: "20:52", topic: "events", type: "stop.arrived", kind: "ok", detail: "stop 2 · Memphis",
+    verdict: "Applied: IN_TRANSIT → AT_DELIVERY; late-risk alert cleared.", explain: "<b>Arrived at Memphis</b> at 20:52, 22 minutes after the window closed. The stop is reached, so the late-risk alert is resolved, and the stop's dwell clock starts.",
+    state: { status: "AT_DELIVERY", eta: "–", miles: 0, risk: "LOW", conf: "–", version: 74 }, frac: 1,
+    alert: { sev: "RESOLVE", type: "LATE_RISK", msg: "late risk cleared: stop reached" } });
+  add({ t: "22:55", topic: "jobs", type: "detention scan", kind: "scan", tag: ["job", "scanner"], detail: "at dock 2.05 h",
+    verdict: "Past 2 h free time → DETENTION MEDIUM.", explain: "<b>Stuck at the dock.</b> The truck has waited 2 hours 3 minutes. The detention scanner raises MEDIUM and starts the cost clock at $75/h.",
+    alert: { sev: "MEDIUM", type: "DETENTION", msg: "detained 2.1 h at Memphis DC; est. $3.75" } });
+  add({ t: "23:52", topic: "jobs", type: "detention scan", kind: "scan", tag: ["job", "scanner"], detail: "at dock 3.0 h",
+    verdict: "3 h → escalated to HIGH (same dedupe key, upserted).", explain: "<b>Escalation.</b> At 3 hours, severity rises to HIGH. The alert keeps the same <code>dedupe_key</code> (<code>detention:SHP…:2</code>), so the sink updates the existing row instead of adding a new one.",
+    alert: { sev: "HIGH", type: "DETENTION", msg: "detained 3.0 h at Memphis DC; est. $75.00" } });
+  add({ t: "00:10", topic: "events", type: "stop.departed", kind: "ok", detail: "stop 2 · Memphis",
+    verdict: "departed_at stamped; next scan resolves detention with final cost.", explain: "<b>Departed</b> after 3 hours 18 minutes. The scanner resolves the detention alert with a final cost of $97.50.",
+    state: { version: 75 },
+    alert: { sev: "RESOLVE", type: "DETENTION", msg: "departed stop 2 · final detention $97.50" } });
+  add({ t: "00:11", topic: "events", type: "shipment.delivered", kind: "ok", detail: "POD signed: A. Garcia",
+    verdict: "Applied: AT_DELIVERY → DELIVERED (terminal).", explain: "<b>Delivered.</b> DELIVERED is terminal: any later event claiming the truck is moving again is rejected as <code>INVALID_TRANSITION</code>. Tonight's rollups will count this load as late on the lane DAL → MEM.",
+    state: { status: "DELIVERED", version: 76 } });
+
+  /* ---------------- render ---------------- */
+  let i = 0, timer = null, st;
+  const fresh = () => ({ status: "–", carrier: "–", rate: "–", eta: "–", miles: "–", risk: "LOW", conf: "–", version: 0 });
+
+  function renderState(changed) {
+    const idx = STATUSES.indexOf(st.status === "REJECTED" ? "TENDERED" : st.status);
+    $("track").innerHTML = STATUSES.map((s, k) => {
+      const label = (s === "TENDERED" && st.status === "REJECTED") ? "REJECTED" : s;
+      const cls = k < idx ? "done" : k === idx ? "now" : "";
+      return `<span class="st ${cls}">${label.replace("_", " ")}</span>`;
+    }).join("");
+    const rows = [
+      ["shipment_id", "SHP-4520700005"], ["status", st.status], ["carrier_id", st.carrier], ["rate_usd", st.rate],
+      ["eta", st.eta], ["miles_remaining", st.miles === "–" ? "–" : String(st.miles)],
+      ["late_risk", `<span class="pill risk-${st.risk}">${st.risk}</span>`],
+      ["eta_confidence", st.conf], ["version", String(st.version)],
+    ];
+    $("statelist").innerHTML = rows.map(([k, v]) => {
+      const key = { carrier_id: "carrier", rate_usd: "rate", miles_remaining: "miles", late_risk: "risk", eta_confidence: "conf" }[k] || k;
+      return `<dt>${k}</dt><dd class="${changed && changed.has(key) ? "flash" : ""}">${v}</dd>`;
+    }).join("");
+  }
+
+  function reset() {
+    stop(); i = 0; st = fresh();
+    $("feed").innerHTML = '<p class="empty">Events will appear here as they are consumed.</p>';
+    $("alerts").innerHTML = '<p class="empty">No alerts yet.</p>';
+    $("dlq").innerHTML = "";
+    $("explain").innerHTML = "<b>Ready.</b> The first event is <code>shipment.created</code> from the TMS.";
+    $("clock").textContent = "fleet clock 08:00";
+    $("bar").style.width = "0%";
+    $("step").disabled = false;
+    placeTruck(-1); renderState();
+  }
+
+  function stepOnce() {
+    if (i >= S.length) { stop(); return; }
+    const s = S[i++];
+    const feed = $("feed");
+    if (feed.querySelector(".empty")) feed.innerHTML = "";
+    feed.querySelectorAll(".current").forEach((n) => n.classList.remove("current"));
+    const topicName = { events: "shipment.events", gps: "telemetry.gps", jobs: "jobs service" }[s.topic];
+    const tags = s.tag ? `<span class="tag ${s.tag[0]}">${s.tag[1]}</span>` : "";
+    const card = document.createElement("div");
+    card.className = `ev ${s.kind} current`;
+    card.innerHTML = `<div class="row"><span class="type">${s.type}</span><span class="t">${s.t}</span></div>
+      <div class="row" style="margin-top:3px"><span><span class="tag topic">${topicName}</span> ${tags}</span><span class="t">${s.detail || ""}</span></div>
+      <div class="verdict">${s.verdict}</div>`;
+    feed.prepend(card);
+
+    const changed = new Set();
+    if (s.state) for (const k in s.state) { if (st[k] !== s.state[k]) changed.add(k); st[k] = s.state[k]; }
+    renderState(changed);
+    if (s.frac !== undefined) placeTruck(s.frac);
+    if (s.alert) {
+      const box = $("alerts");
+      if (box.querySelector(".empty")) box.innerHTML = "";
+      const a = document.createElement("div");
+      a.className = `alert ${s.alert.sev}`;
+      const lab = s.alert.sev === "RESOLVE" ? "resolved" : s.alert.sev;
+      a.innerHTML = `<div class="h"><span>${s.alert.type.replace("_", " ")} · ${lab}</span><span>${s.t}</span></div><div>${s.alert.msg}</div>`;
+      box.prepend(a);
+    }
+    if (s.dlq) {
+      const d = document.createElement("div");
+      d.className = "dlqitem"; d.textContent = "freight.dlq ← " + s.dlq;
+      $("dlq").prepend(d);
+    }
+    $("explain").innerHTML = s.explain;
+    $("clock").textContent = "fleet clock " + s.t;
+    $("bar").style.width = (i / S.length * 100) + "%";
+    if (i >= S.length) { $("step").disabled = true; stop(); $("play").textContent = "Replay"; }
+  }
+  function stop() { if (timer) clearInterval(timer); timer = null; $("play").textContent = i >= S.length ? "Replay" : "Play"; }
+  $("play").addEventListener("click", () => {
+    if (timer) { stop(); return; }
+    if (i >= S.length) reset();
+    $("play").textContent = "Pause";
+    stepOnce();
+    timer = setInterval(stepOnce, 2300);
+  });
+  $("step").addEventListener("click", () => { stop(); stepOnce(); });
+  $("reset").addEventListener("click", reset);
+
+  /* ---------------- charts ---------------- */
+  const LAT = {
+    "1": [[997, 266.5, 419.1, 439.4], [1996, 446.7, 672.5, 716.6], [3991, 311.3, 681.1, 796.0], [5983, 197.8, 274.5, 287.4], [7980, 182.1, 241.4, 266.4]],
+    "3": [[997, 185.0, 313.4, 332.6], [1996, 201.5, 334.7, 351.5], [3994, 231.7, 374.5, 394.9], [5986, 247.7, 401.2, 458.9], [7962, 279.2, 443.4, 477.2]],
+  };
+  let latSel = "1";
+  function drawThroughput() {
+    const svg = $("thr"); svg.innerHTML = "";
+    const data = [["1 processor", 9922], ["3 processors", 21360]];
+    const x0 = 112, x1 = 440, max = 25000;
+    const sx = (v) => x0 + (v / max) * (x1 - x0);
+    for (let v = 0; v <= max; v += 5000) {
+      el("line", { x1: sx(v), x2: sx(v), y1: 20, y2: 150, stroke: css("--line") }, svg);
+      const t = el("text", { x: sx(v), y: 170, "text-anchor": "middle" }, svg); t.textContent = v === 0 ? "0" : (v / 1000) + "k";
+    }
+    const t2 = el("text", { x: (x0 + x1) / 2, y: 186, "text-anchor": "middle" }, svg); t2.textContent = "events per second";
+    data.forEach(([label, v], k) => {
+      const y = 36 + k * 58;
+      const lt = el("text", { x: 0, y: y + 22, class: "lbl" }, svg); lt.textContent = label;
+      el("rect", { x: x0, y, width: sx(v) - x0, height: 36, rx: 4, fill: k ? css("--accent") : css("--blue") }, svg);
+      const vt = el("text", { x: sx(v) - 8, y: y + 23, "text-anchor": "end", fill: "#fff", "font-weight": 600 }, svg);
+      vt.setAttribute("style", "fill:#fff;font-weight:600"); vt.textContent = v.toLocaleString("en-US");
+    });
+  }
+  function drawLatency() {
+    const svg = $("lat"); svg.innerHTML = "";
+    const rows = LAT[latSel];
+    const x0 = 52, x1 = 446, y0 = 192, y1 = 14, xmax = 8000, ymax = 900;
+    const sx = (v) => x0 + (v / xmax) * (x1 - x0), sy = (v) => y0 - (v / ymax) * (y0 - y1);
+    for (let v = 0; v <= ymax; v += 150) {
+      el("line", { x1: x0, x2: x1, y1: sy(v), y2: sy(v), stroke: css("--line") }, svg);
+      const t = el("text", { x: x0 - 6, y: sy(v) + 4, "text-anchor": "end" }, svg); t.textContent = v + " ms";
+    }
+    for (let v = 0; v <= xmax; v += 2000) {
+      const t = el("text", { x: sx(v), y: y0 + 18, "text-anchor": "middle" }, svg); t.textContent = v === 0 ? "0" : (v / 1000) + "k";
+    }
+    const xl = el("text", { x: (x0 + x1) / 2, y: 228, "text-anchor": "middle" }, svg); xl.textContent = "offered load (events/s)";
+    [[1, "--accent"], [2, "--amber"], [3, "--red"]].forEach(([col, tok]) => {
+      const pts = rows.map((r) => `${sx(r[0])},${sy(r[col])}`).join(" ");
+      el("polyline", { points: pts, fill: "none", stroke: css(tok), "stroke-width": 2.5, "stroke-linejoin": "round" }, svg);
+      rows.forEach((r) => {
+        const c = el("circle", { cx: sx(r[0]), cy: sy(r[col]), r: 3.5, fill: css(tok) }, svg);
+        const tt = el("title", {}, c); tt.textContent = `${r[0].toLocaleString("en-US")} ev/s offered: p${[50, 95, 99][col - 1]} ${r[col]} ms`;
+      });
+    });
+  }
+  function setLat(n) {
+    latSel = n;
+    $("lat1").setAttribute("aria-pressed", String(n === "1"));
+    $("lat3").setAttribute("aria-pressed", String(n === "3"));
+    drawLatency();
+  }
+  $("lat1").addEventListener("click", () => setLat("1"));
+  $("lat3").addEventListener("click", () => setLat("3"));
+
+  const SQL = [
+    ["Shipment timeline", "Composite index (shipment_id, event_time)", 31.874, 0.201],
+    ["GPS 2-hour range", "Partition pruning + BRIN on event_time", 37.562, 1.675],
+    ["Shipment list, page 2,001", "OFFSET 100000 → keyset cursor on both join tables", 48.297, 0.098],
+    ["Carrier scorecard, 30 days", "Raw aggregation → daily rollup table", 68.417, 0.017],
+    ["Active alerts for a shipment", "Partial index WHERE resolved_at IS NULL", 10.547, 0.010],
+  ];
+  const ms = (v) => v >= 1 ? v.toFixed(1) + " ms" : v.toFixed(3) + " ms";
+  $("sqlrows").innerHTML = SQL.map(([q, c, b, a]) =>
+    `<tr><td>${q}</td><td>${c}</td><td class="num">${ms(b)}</td><td class="num">${ms(a)}</td><td class="num"><strong>${Math.round(b / a).toLocaleString("en-US")}×</strong></td></tr>`).join("");
+
+  function drawAll() { drawMap(); drawThroughput(); drawLatency(); }
+  st = fresh();
+  drawAll(); renderState();
+  // Redraw SVGs when the theme changes, since they read colors from tokens.
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  if (mq.addEventListener) mq.addEventListener("change", drawAll);
+  new MutationObserver(drawAll).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+})();
+</script>
+
+</body>
+</html>

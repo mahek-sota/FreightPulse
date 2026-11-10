@@ -216,3 +216,6 @@ idempotency; rollups; and every API endpoint, including a live WebSocket push.
 
 The build log, including every decision and every deviation from SPEC.md, is in
 [PROGRESS.md](PROGRESS.md).
+
+A visual project report (interactive demo, system design diagrams, tech stack and results) is in
+[docs/report.html](docs/report.html). Open it in any browser; it needs no server.
